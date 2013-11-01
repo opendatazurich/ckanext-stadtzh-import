@@ -1,0 +1,1 @@
+from ckanext.stadtzhimport.harvesters.stadtzhimportharvester import StadtzhimportHarvester
