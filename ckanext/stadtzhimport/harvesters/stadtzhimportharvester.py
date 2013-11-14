@@ -225,9 +225,6 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
-    def _get_metadata(self, file_name):
-        return metadata
-
     def _create_markdown(self, properties):
         markdown = ''
         for key in properties:
