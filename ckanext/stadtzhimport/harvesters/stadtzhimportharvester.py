@@ -133,7 +133,7 @@ class StadtzhimportHarvester(HarvesterBase):
                             'Datentyp': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
                             'Rechtsgrundlage': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
                             'Bemerkungen': base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')),
-                            'Attribute': xpath.dict_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description')
+                            'Attribute': self._create_markdown(xpath.dict_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'))
                         })
                     }
 
