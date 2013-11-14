@@ -1,7 +1,10 @@
 #coding: utf-8
 
 import os
+import base64
 from lxml import etree
+
+from ckanext.stadtzhimport.helpers.xpath import XPathHelper
 
 from ofs import get_impl
 from pylons import config
@@ -100,33 +103,48 @@ class StadtzhimportHarvester(HarvesterBase):
 
         ids = []
 
-        with open(os.path.join(self.IMPORT_PATH, 'cmspilot_stzh_ch_content_portal_de_index_ogd_docView.xml'), 'r') as cms_file:
-            parser = etree.XMLParser(encoding='utf-8')
-            dataset_node = etree.fromstring(cms_file.read(), parser=parser).find('daten')
+        with open(os.path.join(self.IMPORT_PATH, 'cmspilot_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
+            parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
+            datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
 
-            for dataset in dataset_node:
-                metadata = {
-                    'datasetID': dataset.tag,
-                    'title': dataset.tag,
-                    'url': None,
-                    'notes': None,
-                    'author': None,
-                    'maintainer': 'Open Data Zürich',
-                    'maintainer_email': 'opendata@zuerich.ch',
-                    'license_id': 'to_be_filled',
-                    'license_url': 'to_be_filled',
-                    'tags': [],
-                    'resources': []
-                }
+            for dataset in datasets:
+                if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
+                    xpath = XPathHelper(dataset)
+                    metadata = {
+                        'datasetID': xpath.text('./@sv:name'),
+                        'title': xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value'),
+                        'url': None,
+                        'notes': None,
+                        'author': xpath.text('.//sv:property[@sv:name="source"]/sv:value'),
+                        'maintainer': 'Open Data Zürich',
+                        'maintainer_email': 'opendata@zuerich.ch',
+                        'license_id': 'to_be_filled',
+                        'license_url': 'to_be_filled',
+                        'tags': [],
+                        'resources': [],
+                        'notes': self._create_markdown({
+                            'Details': xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value'),
+                            u'Erstmalige Veröffentlichung': xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value'),
+                            'Zeitraum': xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'),
+                            'Aktualisierungsintervall': xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value'),
+                            'Aktuelle Version': xpath.text('.//sv:property[@sv:name="version"]/sv:value'),
+                            'Aktualisierungsdatum': xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value'),
+                            u'Räumliche Beziehung': xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value'),
+                            'Datentyp': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
+                            'Rechtsgrundlage': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
+                            'Bemerkungen': base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')),
+                            'Attribute': xpath.dict_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description')
+                        })
+                    }
 
-                obj = HarvestObject(
-                    guid = metadata['datasetID'],
-                    job = harvest_job,
-                    content = json.dumps(metadata)
-                )
-                obj.save()
-                log.debug('adding ' + metadata['datasetID'] + ' to the queue')
-                ids.append(obj.id)
+                    obj = HarvestObject(
+                        guid = metadata['datasetID'],
+                        job = harvest_job,
+                        content = json.dumps(metadata)
+                    )
+                    obj.save()
+                    log.debug('adding ' + metadata['datasetID'] + ' to the queue')
+                    ids.append(obj.id)
 
         return ids
 
@@ -206,3 +224,20 @@ class StadtzhimportHarvester(HarvesterBase):
             log.exception(e)
 
         return True
+
+    def _get_metadata(self, file_name):
+        return metadata
+
+    def _create_markdown(self, properties):
+        markdown = ''
+        for key in properties:
+            text = self._normalize(properties[key])
+            key = self._normalize(key)
+            markdown += '#' + key + '\n' + text + '\n'
+        return markdown
+
+    def _normalize(self, string):
+        if type(string) == unicode:
+            return string.encode('utf8', 'ignore')
+        else:
+            return str(string)
