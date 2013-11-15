@@ -36,10 +36,10 @@ class XPathHelper(object):
         value = self.element(xpath, xml)
         return value.text if hasattr(value, 'text') else value
 
-    def dict_from_nodes(self, xpath, key, value):
-        result = {}
+    def tuple_from_nodes(self, xpath, key, value):
+        result = []
         nodes = self.multielement(xpath);
         for node in nodes:
-            result[self.text('./sv:property[@sv:name="%s"]/sv:value' % key, node)] = self.text('./sv:property[@sv:name="%s"]/sv:value' % value, node)
+            result.append((self.text('./sv:property[@sv:name="%s"]/sv:value' % key, node), self.text('./sv:property[@sv:name="%s"]/sv:value' % value, node)))
         return result
 

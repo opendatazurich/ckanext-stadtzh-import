@@ -122,21 +122,20 @@ class StadtzhimportHarvester(HarvesterBase):
                         'license_url': 'to_be_filled',
                         'tags': [],
                         'resources': [],
-                        'notes': self._create_markdown({
-                            'Details': xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value'),
-                            u'Erstmalige Veröffentlichung': xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value'),
-                            'Zeitraum': xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'),
-                            'Aktualisierungsintervall': xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value'),
-                            'Aktuelle Version': xpath.text('.//sv:property[@sv:name="version"]/sv:value'),
-                            'Aktualisierungsdatum': xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value'),
-                            u'Räumliche Beziehung': xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value'),
-                            'Datentyp': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
-                            'Rechtsgrundlage': xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'),
-                            'Bemerkungen': base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')),
-                            'Attribute': self._create_markdown(xpath.dict_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'))
-                        })
+                        'notes': self._create_markdown([
+                            ('Details', xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
+                            (u'Erstmalige Veröffentlichung', xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value')),
+                            ('Zeitraum', xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value')),
+                            ('Aktualisierungsintervall', xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value')),
+                            ('Aktuelle Version', xpath.text('.//sv:property[@sv:name="version"]/sv:value')),
+                            ('Aktualisierungsdatum', xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value')),
+                            (u'Räumliche Beziehung', xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value')),
+                            ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
+                            ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
+                            ('Bemerkungen', base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
+                             ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), '###'))
+                        ])
                     }
-
                     obj = HarvestObject(
                         guid = metadata['datasetID'],
                         job = harvest_job,
@@ -225,12 +224,13 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
-    def _create_markdown(self, properties):
+    def _create_markdown(self, properties, title_tag='#'):
         markdown = ''
-        for key in properties:
-            text = self._normalize(properties[key])
-            key = self._normalize(key)
-            markdown += '#' + key + '\n' + text + '\n'
+        for key, value in properties:
+            if value:
+                value = self._normalize(value)
+                key = self._normalize(key)
+                markdown += title_tag + ' ' + key + '\n' + value + '\n'
         return markdown
 
     def _normalize(self, string):
