@@ -14,6 +14,7 @@ from ckan.model import Session, Package
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
 from ckan.lib.munge import munge_title_to_name
+from ckanext.harvest.harvesters.base import munge_tag
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, \
                                     HarvestObjectError
@@ -44,6 +45,8 @@ class StadtzhimportHarvester(HarvesterBase):
     }
 
     IMPORT_PATH = '/usr/lib/ckan/cmspilot_stzh_ch_content_portal_de_index_ogd'
+
+    PERMALINK_FORMAT = 'http://data.stadt-zuerich.ch/ogd.%s.link'
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
@@ -97,6 +100,49 @@ class StadtzhimportHarvester(HarvesterBase):
             'form_config_interface': 'Text'
         }
 
+    def _generate_permalink(self, id):
+        return self.PERMALINK_FORMAT % id
+
+    def _generate_resources_dict_array(self, xpath):
+        '''
+        Given the xpath of a dataset, it'll return an array of resource metadata
+        '''
+        resources = []
+
+        for file in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdfile")]'):
+            xpath = XPathHelper(file)
+            if xpath.text('./sv:property[@sv:name="text"]/sv:value'):
+                resources.append({
+                    # 'url': '', # will be filled in the import stage
+                    'name': xpath.text('./sv:property[@sv:name="text"]/sv:value'),
+                    'format': xpath.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
+                    'resource_type': 'file'
+                })
+
+        for link in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdlink")]'):
+            xpath = XPathHelper(link)
+            if xpath.text('./sv:property[@sv:name="text"]/sv:value'):
+                resources.append({
+                    'url': self._generate_permalink(xpath.text('./sv:property[@sv:name="permalinkid"]/sv:value')),
+                    'name': xpath.text('./sv:property[@sv:name="text"]/sv:value'),
+                    'format': xpath.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
+                    'resource_type': 'api'
+                })
+
+        return resources
+
+    def _generate_tags_array(self, xpath):
+        '''
+        All tags for a dataset into an array
+        '''
+        tags = []
+        try:
+            for tag in xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value'):
+                tags.append(munge_tag(tag))
+        except AttributeError:
+            return tags
+
+        return tags
 
     def gather_stage(self, harvest_job):
         log.debug('In StadtzhimportHarvester gather_stage')
@@ -114,14 +160,13 @@ class StadtzhimportHarvester(HarvesterBase):
                         'datasetID': xpath.text('./@sv:name'),
                         'title': xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value'),
                         'url': None,
-                        'notes': None,
                         'author': xpath.text('.//sv:property[@sv:name="source"]/sv:value'),
                         'maintainer': 'Open Data Zürich',
                         'maintainer_email': 'opendata@zuerich.ch',
                         'license_id': 'to_be_filled',
                         'license_url': 'to_be_filled',
-                        'tags': [],
-                        'resources': [],
+                        'tags': self._generate_tags_array(xpath),
+                        'resources': self._generate_resources_dict_array(xpath),
                         'notes': self._create_markdown([
                             ('Details', xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
                             (u'Erstmalige Veröffentlichung', xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value')),
@@ -133,7 +178,7 @@ class StadtzhimportHarvester(HarvesterBase):
                             ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
                             ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
                             ('Bemerkungen', base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
-                             ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), '###'))
+                            ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), '###'))
                         ])
                     }
                     obj = HarvestObject(
