@@ -2,7 +2,7 @@
 
 import os
 import base64
-import urllib3
+import urllib2
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
@@ -102,10 +102,13 @@ class StadtzhimportHarvester(HarvesterBase):
         }
 
     def _generate_permalink(self, id):
+        '''
+        Return full permalink given the permalink id
+        '''
         return self.PERMALINK_FORMAT % id
 
 
-    def _download_file(self, url, file_name):
+    def _download_file(self, url, path, file_name):
         '''
         Try to download the file and return True on success, False on failure
         '''
@@ -113,23 +116,24 @@ class StadtzhimportHarvester(HarvesterBase):
         if not os.path.exists(self.IMPORT_PATH):
             raise Exception('Importer path "%s" doesn\'t exist. Cannot proceed.' % self.IMPORT_PATH)
 
-        http = urllib3.PoolManager()
-        r = http.request('GET', url, headers={'User-Agent': 'curl'})
-        if r.status != 302:
-            log.debug(str(r.status) + ': ' + url)
+        try:
+            request = urllib2.Request(url, headers={"User-Agent" : "curl"})
+            contents = urllib2.urlopen(request)
+        except urllib2.HTTPError, e:
+            log.debug('Downloading "%s" failed with error code "%s".' % url, e.code)
             return False
 
-        with open(os.path.join(self.IMPORT_PATH, file_name), 'wb') as out:
-            out = r.data
-            # while True:
-            #     data = r.read(1024)
-            #     if data is None:
-            #         break
-            #     out.write(data)
+        log.debug(path)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        with open(os.path.join(path, file_name), 'wb') as f:
+            f.write(contents.read())
 
         return True
 
-    def _generate_resources_dict_array(self, xpath):
+    def _generate_resources_dict_array(self, xpath, datasetID):
         '''
         Given the xpath of a dataset, it'll return an array of resource metadata
         '''
@@ -141,8 +145,9 @@ class StadtzhimportHarvester(HarvesterBase):
 
                 url = self._generate_permalink(xpath.text('./sv:property[@sv:name="permalinkid"]/sv:value'))
                 file_name = xpath.text('./sv:property[@sv:name="fileName"]/sv:value')
+                path = os.path.join(self.IMPORT_PATH, datasetID)
 
-                if self._download_file(url, file_name):
+                if self._download_file(url, path, file_name):
                     resources.append({
                         # 'url': '', # will be filled in the import stage
                         'name': file_name,
@@ -168,7 +173,7 @@ class StadtzhimportHarvester(HarvesterBase):
         '''
         tags = []
         try:
-            for tag in xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value'):
+            for tag in xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value').split(','):
                 tags.append(munge_tag(tag))
         except AttributeError:
             return tags
@@ -187,8 +192,9 @@ class StadtzhimportHarvester(HarvesterBase):
             for dataset in datasets:
                 if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
                     xpath = XPathHelper(dataset)
+                    datasetID = xpath.text('./@sv:name')
                     metadata = {
-                        'datasetID': xpath.text('./@sv:name'),
+                        'datasetID': datasetID,
                         'title': xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value'),
                         'url': None,
                         'author': xpath.text('.//sv:property[@sv:name="source"]/sv:value'),
@@ -197,7 +203,7 @@ class StadtzhimportHarvester(HarvesterBase):
                         'license_id': 'to_be_filled',
                         'license_url': 'to_be_filled',
                         'tags': self._generate_tags_array(xpath),
-                        'resources': self._generate_resources_dict_array(xpath),
+                        'resources': self._generate_resources_dict_array(xpath, datasetID),
                         'notes': self._create_markdown([
                             ('Details', xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
                             (u'Erstmalige Veröffentlichung', xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value')),
