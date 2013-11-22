@@ -2,6 +2,7 @@
 
 import os
 import base64
+import urllib3
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
@@ -103,6 +104,31 @@ class StadtzhimportHarvester(HarvesterBase):
     def _generate_permalink(self, id):
         return self.PERMALINK_FORMAT % id
 
+
+    def _download_file(self, url, file_name):
+        '''
+        Try to download the file and return True on success, False on failure
+        '''
+
+        if not os.path.exists(self.IMPORT_PATH):
+            raise Exception('Importer path "%s" doesn\'t exist. Cannot proceed.' % self.IMPORT_PATH)
+
+        http = urllib3.PoolManager()
+        r = http.request('GET', url, headers={'User-Agent': 'curl'})
+        if r.status != 302:
+            log.debug(str(r.status) + ': ' + url)
+            return False
+
+        with open(os.path.join(self.IMPORT_PATH, file_name), 'wb') as out:
+            out = r.data
+            # while True:
+            #     data = r.read(1024)
+            #     if data is None:
+            #         break
+            #     out.write(data)
+
+        return True
+
     def _generate_resources_dict_array(self, xpath):
         '''
         Given the xpath of a dataset, it'll return an array of resource metadata
@@ -111,13 +137,18 @@ class StadtzhimportHarvester(HarvesterBase):
 
         for file in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdfile")]'):
             xpath = XPathHelper(file)
-            if xpath.text('./sv:property[@sv:name="text"]/sv:value'):
-                resources.append({
-                    # 'url': '', # will be filled in the import stage
-                    'name': xpath.text('./sv:property[@sv:name="text"]/sv:value'),
-                    'format': xpath.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
-                    'resource_type': 'file'
-                })
+            if xpath.text('./sv:property[@sv:name="fileName"]/sv:value'):
+
+                url = self._generate_permalink(xpath.text('./sv:property[@sv:name="permalinkid"]/sv:value'))
+                file_name = xpath.text('./sv:property[@sv:name="fileName"]/sv:value')
+
+                if self._download_file(url, file_name):
+                    resources.append({
+                        # 'url': '', # will be filled in the import stage
+                        'name': file_name,
+                        'format': xpath.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
+                        'resource_type': 'file'
+                    })
 
         for link in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdlink")]'):
             xpath = XPathHelper(link)
@@ -190,6 +221,8 @@ class StadtzhimportHarvester(HarvesterBase):
                     log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                     ids.append(obj.id)
 
+                    break
+
         return ids
 
 
@@ -252,7 +285,7 @@ class StadtzhimportHarvester(HarvesterBase):
                 if r['resource_type'] == 'file':
                     label = package_dict['datasetID'] + '/' + r['name']
                     file_contents = ''
-                    with open(os.path.join(self.IMPORT_PATH, package_dict['datasetID'], 'DEFAULT', r['name'])) as contents:
+                    with open(os.path.join(self.IMPORT_PATH, package_dict['datasetID'], r['name'])) as contents:
                         file_contents = contents.read()
                     params = {
                         'filename-original': 'the original file name',
