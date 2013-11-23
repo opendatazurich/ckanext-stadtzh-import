@@ -219,9 +219,9 @@ class StadtzhimportHarvester(HarvesterBase):
                             (u'Räumliche Beziehung', xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value')),
                             ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
                             ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
-                            ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value')),
-                            ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), heading=False))
-                        ])
+                            ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))
+                        ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'))
+
                     }
                     obj = HarvestObject(
                         guid = metadata['datasetID'],
@@ -311,16 +311,13 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
-    def _create_markdown(self, properties, heading=True):
+    def _create_markdown(self, properties):
         markdown = ''
         for key, value in properties:
             if value:
                 value = self._normalize(self._convert_base64(value))
                 key = self._normalize(key)
-                if heading:
-                    markdown += '# ' + key + '\n' + value + '\n'
-                else:
-                    markdown += '**' + key + '**  \n' + value + '  \n'
+                markdown += '**' + key + '**  \n' + value + '\n\n'
 
         return markdown
 
