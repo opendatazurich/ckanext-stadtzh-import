@@ -2,6 +2,7 @@
 
 import os
 import base64
+os.environ['http_proxy']=''
 import urllib2
 from lxml import etree
 
@@ -116,26 +117,26 @@ class StadtzhimportHarvester(HarvesterBase):
         if not os.path.exists(self.IMPORT_PATH):
             raise Exception('Importer path "%s" doesn\'t exist. Cannot proceed.' % self.IMPORT_PATH)
 
-        try:
-            request = urllib2.Request(url, headers={"User-Agent" : "curl"})
-            contents = urllib2.urlopen(request)
-        except urllib2.HTTPError, e:
-            log.debug('Downloading "%s" failed with error code "%s".' % url, e.code)
-            return False
+        # TODO remove the check again
+        if not os.path.exists(os.path.join(path, file_name)):
+            try:
+                request = urllib2.Request(url, headers={"User-Agent" : "curl"})
+                contents = urllib2.urlopen(request)
+            except urllib2.HTTPError, e:
+                log.debug('Downloading "%s" failed with error code "%s".' % (url, e.code))
+                return False
 
-        log.debug(path)
+            if not os.path.exists(path):
+                os.makedirs(path)
 
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        with open(os.path.join(path, file_name), 'wb') as f:
-            f.write(contents.read())
+            with open(os.path.join(path, file_name), 'wb') as f:
+                f.write(contents.read())
 
         return True
 
     def _generate_resources_dict_array(self, xpath, datasetID):
         '''
-        Given the xpath of a dataset, it'll return an array of resource metadata
+        Given the xpath of a dataset return an array of resource metadata
         '''
         resources = []
 
@@ -151,7 +152,7 @@ class StadtzhimportHarvester(HarvesterBase):
                     resources.append({
                         # 'url': '', # will be filled in the import stage
                         'name': file_name,
-                        'format': xpath.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
+                        'format': file_name.split('.')[-1],
                         'resource_type': 'file'
                     })
 
@@ -172,11 +173,12 @@ class StadtzhimportHarvester(HarvesterBase):
         All tags for a dataset into an array
         '''
         tags = []
+        values = self._convert_base64(xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value'))
         try:
-            for tag in xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value').split(','):
+            for tag in values.split(','):
                 tags.append(munge_tag(tag))
         except AttributeError:
-            return tags
+            pass
 
         return tags
 
@@ -193,6 +195,9 @@ class StadtzhimportHarvester(HarvesterBase):
                 if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
                     xpath = XPathHelper(dataset)
                     datasetID = xpath.text('./@sv:name')
+                    tags = self._generate_tags_array(xpath)
+                    if not tags:
+                        log.debug('Dataset "%s" has no tags' % datasetID)
                     metadata = {
                         'datasetID': datasetID,
                         'title': xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value'),
@@ -202,7 +207,7 @@ class StadtzhimportHarvester(HarvesterBase):
                         'maintainer_email': 'opendata@zuerich.ch',
                         'license_id': 'to_be_filled',
                         'license_url': 'to_be_filled',
-                        'tags': self._generate_tags_array(xpath),
+                        'tags': tags,
                         'resources': self._generate_resources_dict_array(xpath, datasetID),
                         'notes': self._create_markdown([
                             ('Details', xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
@@ -214,8 +219,8 @@ class StadtzhimportHarvester(HarvesterBase):
                             (u'Räumliche Beziehung', xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value')),
                             ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
                             ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
-                            ('Bemerkungen', base64.b64decode(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
-                            ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), '###'))
+                            ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value')),
+                            ('Attribute', self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'), heading=False))
                         ])
                     }
                     obj = HarvestObject(
@@ -226,8 +231,6 @@ class StadtzhimportHarvester(HarvesterBase):
                     obj.save()
                     log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                     ids.append(obj.id)
-
-                    break
 
         return ids
 
@@ -308,13 +311,17 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
-    def _create_markdown(self, properties, title_tag='#'):
+    def _create_markdown(self, properties, heading=True):
         markdown = ''
         for key, value in properties:
             if value:
-                value = self._normalize(value)
+                value = self._normalize(self._convert_base64(value))
                 key = self._normalize(key)
-                markdown += title_tag + ' ' + key + '\n' + value + '\n'
+                if heading:
+                    markdown += '# ' + key + '\n' + value + '\n'
+                else:
+                    markdown += '**' + key + '**  \n' + value + '  \n'
+
         return markdown
 
     def _normalize(self, string):
@@ -322,3 +329,17 @@ class StadtzhimportHarvester(HarvesterBase):
             return string.encode('utf8', 'ignore')
         else:
             return str(string)
+
+    def _convert_base64(self, string):
+        '''
+        If the given string is base64 encoded, decode it
+        '''
+        try:
+            # try to decode base64, if it fails, carry on
+            decoded = base64.b64decode(string)
+            # base64 decoding worked, now try to decode the result as utf8
+            # if this fails the original string was not really base64
+            decoded.decode('utf8')
+            return decoded
+        except:
+            return string
