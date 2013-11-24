@@ -2,6 +2,7 @@
 
 import os
 import base64
+import re
 os.environ['http_proxy']=''
 import urllib2
 from lxml import etree
@@ -322,6 +323,10 @@ class StadtzhimportHarvester(HarvesterBase):
         return markdown
 
     def _normalize(self, string):
+        # convert strings like 'ogd_datatype:datenaggregat' to 'Datenaggregat'
+        match = re.search(r'^ogd_.*:(.*)$', string)
+        if match:
+            string = match.group(1).capitalize()
         if type(string) == unicode:
             return string.encode('utf8', 'ignore')
         else:
