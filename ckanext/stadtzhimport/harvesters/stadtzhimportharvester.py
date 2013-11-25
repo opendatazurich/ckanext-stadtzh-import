@@ -4,6 +4,7 @@ import os
 import base64
 import re
 os.environ['http_proxy']=''
+import httplib
 import urllib2
 from lxml import etree
 
@@ -123,7 +124,7 @@ class StadtzhimportHarvester(HarvesterBase):
             try:
                 request = urllib2.Request(url, headers={"User-Agent" : "curl"})
                 contents = urllib2.urlopen(request)
-            except urllib2.HTTPError, e:
+            except (urllib2.HTTPError, httplib.BadStatusLine) as e:
                 log.debug('Downloading "%s" failed with error code "%s".' % (url, e.code))
                 return False
 
