@@ -310,7 +310,7 @@ class StadtzhimportHarvester(HarvesterBase):
 
             result = self._create_or_update_package(package_dict, harvest_object)
 
-            self._related_create(package_dict['name'], package_dict['related'])
+            self._related_create_or_update(package_dict['name'], package_dict['related'])
 
             Session.commit()
 
@@ -366,16 +366,23 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return related
 
-    def _related_create(self, dataset_id, data):
+    def _related_create_or_update(self, dataset_id, data):
         context = {
             'model': model,
             'session': Session,
             'user': self.config['user']
         }
 
+        urls = []
+        for related in related_list(dataset_id):
+            urls.append(related['url'])
+
         for entry in data:
             entry['dataset_id'] = dataset_id
-            related_create(context, entry)
+            if entry['url'] in urls:
+                related_update(context, entry)
+            else:
+                related_create(context, entry)
 
     def _fix_related_url(self, raw):
         url = ''
