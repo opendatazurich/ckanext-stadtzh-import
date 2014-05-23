@@ -6,6 +6,7 @@ import re
 os.environ['http_proxy']=''
 import httplib
 import urllib2
+import pprint
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
@@ -15,6 +16,7 @@ from pylons import config
 from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
+from ckan.logic.action.create import related_create
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
 from ckan.lib.munge import munge_title_to_name
@@ -222,7 +224,8 @@ class StadtzhimportHarvester(HarvesterBase):
                             ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
                             ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
                             ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))
-                        ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'))
+                        ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description')),
+                        'related': self._get_related(xpath)
 
                     }
                     obj = HarvestObject(
@@ -306,6 +309,9 @@ class StadtzhimportHarvester(HarvesterBase):
                     self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
 
             result = self._create_or_update_package(package_dict, harvest_object)
+
+            self._related_create(package_dict['name'], package_dict['related'])
+
             Session.commit()
 
         except Exception, e:
@@ -346,3 +352,40 @@ class StadtzhimportHarvester(HarvesterBase):
             return decoded
         except:
             return string
+
+    def _get_related(self, xpath):
+        related = []
+
+        for type in ['applications', 'publications']:
+            for value in xpath.multielement('.//sv:property[@sv:name="' + type + '"]/sv:value'):
+                related.append({
+                    'title': type,
+                    'type': type,
+                    'url': self._fix_related_url(value.text)
+                })
+
+        return related
+
+    def _related_create(self, dataset_id, data):
+        context = {
+            'model': model,
+            'session': Session,
+            'user': self.config['user']
+        }
+
+        for entry in data:
+            entry['dataset_id'] = dataset_id
+            related_create(context, entry)
+
+    def _fix_related_url(self, raw):
+        url = ''
+        try:
+            m = re.match('\/content\/(.*)', raw)
+            if m:
+                url = 'http://www.stadt-zuerich.ch/' + m.group(1)
+            else:
+                url = 'http://' + raw
+        except:
+            log.debug('Failed to fix url "%s"' % raw)
+
+        return url
