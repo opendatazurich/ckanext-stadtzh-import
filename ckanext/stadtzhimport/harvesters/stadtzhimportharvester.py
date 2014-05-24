@@ -16,7 +16,6 @@ from pylons import config
 from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
-from ckan.logic.action.create import related_create
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
 from ckan.lib.munge import munge_title_to_name
@@ -374,22 +373,27 @@ class StadtzhimportHarvester(HarvesterBase):
         }
 
         urls = []
-        for related in related_list(dataset_id):
+        data_dict = {
+            'id': dataset_id
+        }
+        for related in action.get.related_list(context, data_dict):
             urls.append(related['url'])
 
         for entry in data:
             entry['dataset_id'] = dataset_id
             if entry['url'] in urls:
-                related_update(context, entry)
+                action.update.related_update(context, entry)
+                log.debug('Updating related %s' % entry)
             else:
-                related_create(context, entry)
+                log.debug('Creating related %s' % entry)
+                action.create.related_create(context, entry)
 
     def _fix_related_url(self, raw):
         url = ''
         try:
             m = re.match('\/content\/(.*)', raw)
             if m:
-                url = 'http://www.stadt-zuerich.ch/' + m.group(1)
+                url = 'https://www.stadt-zuerich.ch/' + m.group(1) + '.html'
             else:
                 url = 'http://' + raw
         except:
