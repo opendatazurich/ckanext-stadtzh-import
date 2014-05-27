@@ -372,18 +372,19 @@ class StadtzhimportHarvester(HarvesterBase):
             'user': self.config['user']
         }
 
-        urls = []
+        related_items = {}
         data_dict = {
             'id': dataset_id
         }
         for related in action.get.related_list(context, data_dict):
-            urls.append(related['url'])
+            related_items[related['url']] = related
 
         for entry in data:
             entry['dataset_id'] = dataset_id
-            if entry['url'] in urls:
-                action.update.related_update(context, entry)
+            if entry['url'] in related_items.keys():
+                entry = dict(related_items[entry['url']].items() + entry.items())
                 log.debug('Updating related %s' % entry)
+                action.update.related_update(context, entry)
             else:
                 log.debug('Creating related %s' % entry)
                 action.create.related_create(context, entry)
