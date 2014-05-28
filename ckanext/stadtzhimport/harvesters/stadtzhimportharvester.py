@@ -355,11 +355,22 @@ class StadtzhimportHarvester(HarvesterBase):
     def _get_related(self, xpath):
         related = []
 
-        for type in ['applications', 'publications']:
+        translations = {
+            'applications': 'Applikation',
+            'publications': 'Publikation'
+        }
+
+        for type in translations.keys():
             for value in xpath.multielement('.//sv:property[@sv:name="' + type + '"]/sv:value'):
+
+                try:
+                    title = re.match(".*/(.*)$", value.text).group(1)
+                except:
+                    title = value.text
+                    log.debug('Using url as related item title for value: %s' % title)
                 related.append({
-                    'title': type,
-                    'type': type,
+                    'title': title,
+                    'type': translations[type],
                     'url': self._fix_related_url(value.text)
                 })
 
@@ -392,7 +403,7 @@ class StadtzhimportHarvester(HarvesterBase):
     def _fix_related_url(self, raw):
         url = ''
         try:
-            m = re.match('\/content\/(.*)', raw)
+            m = re.match('/content/(.*)', raw)
             if m:
                 url = 'https://www.stadt-zuerich.ch/' + m.group(1) + '.html'
             else:
