@@ -6,6 +6,7 @@ import re
 os.environ['http_proxy']=''
 import httplib
 import urllib2
+import pprint
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
@@ -222,7 +223,8 @@ class StadtzhimportHarvester(HarvesterBase):
                             ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
                             ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
                             ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))
-                        ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description'))
+                        ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description')),
+                        'related': self._get_related(xpath)
 
                     }
                     obj = HarvestObject(
@@ -306,6 +308,9 @@ class StadtzhimportHarvester(HarvesterBase):
                     self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
 
             result = self._create_or_update_package(package_dict, harvest_object)
+
+            self._related_create_or_update(package_dict['name'], package_dict['related'])
+
             Session.commit()
 
         except Exception, e:
@@ -346,3 +351,64 @@ class StadtzhimportHarvester(HarvesterBase):
             return decoded
         except:
             return string
+
+    def _get_related(self, xpath):
+        related = []
+
+        translations = {
+            'applications': 'Applikation',
+            'publications': 'Publikation'
+        }
+
+        for type in translations.keys():
+            for value in xpath.multielement('.//sv:property[@sv:name="' + type + '"]/sv:value'):
+
+                try:
+                    title = re.match(".*/(.*)$", value.text).group(1)
+                except:
+                    title = value.text
+                    log.debug('Using url as related item title for value: %s' % title)
+                related.append({
+                    'title': title,
+                    'type': translations[type],
+                    'url': self._fix_related_url(value.text)
+                })
+
+        return related
+
+    def _related_create_or_update(self, dataset_id, data):
+        context = {
+            'model': model,
+            'session': Session,
+            'user': self.config['user']
+        }
+
+        related_items = {}
+        data_dict = {
+            'id': dataset_id
+        }
+        for related in action.get.related_list(context, data_dict):
+            related_items[related['url']] = related
+
+        for entry in data:
+            entry['dataset_id'] = dataset_id
+            if entry['url'] in related_items.keys():
+                entry = dict(related_items[entry['url']].items() + entry.items())
+                log.debug('Updating related %s' % entry)
+                action.update.related_update(context, entry)
+            else:
+                log.debug('Creating related %s' % entry)
+                action.create.related_create(context, entry)
+
+    def _fix_related_url(self, raw):
+        url = ''
+        try:
+            m = re.match('/content/(.*)', raw)
+            if m:
+                url = 'https://www.stadt-zuerich.ch/' + m.group(1) + '.html'
+            else:
+                url = 'http://' + raw
+        except:
+            log.debug('Failed to fix url "%s"' % raw)
+
+        return url
