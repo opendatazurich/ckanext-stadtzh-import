@@ -178,8 +178,9 @@ class StadtzhimportHarvester(HarvesterBase):
         tags = []
         values = self._convert_base64(xpath.text('.//sv:property[@sv:name="metaTagKeywords"]/sv:value'))
         try:
-            for tag in values.split(','):
-                tags.append(munge_tag(tag))
+            if values:
+                for tag in values.split(','):
+                    tags.append(munge_tag(tag))
         except AttributeError:
             pass
 
