@@ -49,7 +49,7 @@ class StadtzhimportHarvester(HarvesterBase):
         'user': u'harvest'
     }
 
-    IMPORT_PATH = '/usr/lib/ckan/cmspilot_stzh_ch_content_portal_de_index_ogd'
+    IMPORT_PATH = '/usr/lib/ckan/cms_stzh_ch_content_portal_de_index_ogd'
 
     PERMALINK_FORMAT = 'http://data.stadt-zuerich.ch/ogd.%s.link'
 
@@ -191,7 +191,7 @@ class StadtzhimportHarvester(HarvesterBase):
 
         ids = []
 
-        with open(os.path.join(self.IMPORT_PATH, 'cmspilot_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
+        with open(os.path.join(self.IMPORT_PATH, 'cms_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
             parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
             datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
 
