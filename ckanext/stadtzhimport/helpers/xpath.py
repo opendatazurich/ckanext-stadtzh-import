@@ -18,7 +18,6 @@ class XPathHelper(object):
         try:
             value = xml.xpath(xpath, namespaces=self.namespaces)[0]
         except Exception as e:
-            log.info('"%s" for xpath "%s"' % (str(e), xpath))
             value = ''
         return value
 
@@ -28,7 +27,6 @@ class XPathHelper(object):
         try:
             value = xml.xpath(xpath, namespaces=self.namespaces)
         except Exception as e:
-            log.info('"%s" for xpath "%s"' % (str(e), xpath))
             value = ''
         return value
 

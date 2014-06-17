@@ -27,6 +27,7 @@ setup(
     [ckan.plugins]
     stadtzhimport=ckanext.stadtzhimport.plugins:StadtzhimportHarvest
     stadtzhimport_harvester=ckanext.stadtzhimport.harvesters:StadtzhimportHarvester
+    stadtzhimport_test_harvester=ckanext.stadtzhimport.tests.test_queue:TestHarvester
     [paste.paster_command]
     harvester=ckanext.stadtzhimport.commands.harvester:Harvester
     """,
