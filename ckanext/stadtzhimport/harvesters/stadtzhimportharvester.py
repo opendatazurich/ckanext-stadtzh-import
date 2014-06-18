@@ -249,7 +249,7 @@ class StadtzhimportHarvester(HarvesterBase):
             parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
             datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
 
-            for dataset in datasets[:10]:
+            for dataset in datasets:
                 ids.append(self._save_dataset(dataset, harvest_job))
 
         return ids
