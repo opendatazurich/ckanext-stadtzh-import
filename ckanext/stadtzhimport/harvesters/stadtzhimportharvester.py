@@ -219,18 +219,23 @@ class StadtzhimportHarvester(HarvesterBase):
                 'license_url': 'to_be_filled',
                 'tags': tags,
                 'resources': self._generate_resources_dict_array(xpath, datasetID),
-                'notes': self._create_markdown([
-                    ('Details', xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
-                    (u'Erstmalige Veröffentlichung', xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value')),
-                    ('Zeitraum', xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value')),
-                    ('Aktualisierungsintervall', xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value')),
-                    ('Aktuelle Version', xpath.text('.//sv:property[@sv:name="version"]/sv:value')),
-                    ('Aktualisierungsdatum', xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value')),
-                    (u'Räumliche Beziehung', xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value')),
-                    ('Datentyp', xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')),
-                    ('Rechtsgrundlage', xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value')),
-                    ('Bemerkungen', xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))
-                ]) + '\n## Attribute  \n' + self._create_markdown(xpath.tuple_from_nodes('.//sv:node[@sv:name="attributes"]/sv:node', 'fieldname_tech',  'field_description')),
+                'notes': self._convert_base64(xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
+                'extras': [
+                    ('spatialRelationship', self._convert_base64(xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value'))),
+                    ('dateFirstPublished', self._convert_base64(xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value'))),
+                    ('dateLastUpdated', self._convert_base64(xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value'))),
+                    ('version', self._convert_base64(xpath.text('.//sv:property[@sv:name="version"]/sv:value'))),
+                    ('updateInterval', self._convert_base64(xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value'))),
+                    ('timeRange', self._convert_base64(xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'))),
+                    ('dataType', self._convert_base64(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'))),
+                    ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
+                    ('comments', self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
+                    ('attributes', self._json_encode_attributes(
+                        xpath.tuple_from_nodes(
+                            './/sv:node[@sv:name="attributes"]/sv:node',
+                            'fieldname_tech',
+                            'field_description')))
+                ],
                 'related': self._get_related(xpath)
             }
             return self._save_harvest_object(metadata, harvest_job)
@@ -244,7 +249,7 @@ class StadtzhimportHarvester(HarvesterBase):
             parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
             datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
 
-            for dataset in datasets:
+            for dataset in datasets[:10]:
                 ids.append(self._save_dataset(dataset, harvest_job))
 
         return ids
@@ -329,15 +334,15 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
-    def _create_markdown(self, properties):
-        markdown = ''
+    def _json_encode_attributes(self, properties):
+        _dict = {}
         for key, value in properties:
             if value:
                 value = self._normalize(self._convert_base64(value))
                 key = self._normalize(key)
-                markdown += '**' + key + '**  \n' + value + '\n\n'
+                _dict[key] = value
 
-        return markdown
+        return json.dumps(_dict)
 
     def _normalize(self, string):
         # convert strings like 'ogd_datatype:datenaggregat' to 'Datenaggregat'
