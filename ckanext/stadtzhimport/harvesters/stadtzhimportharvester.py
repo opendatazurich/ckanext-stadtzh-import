@@ -7,6 +7,7 @@ os.environ['http_proxy']=''
 import httplib
 import urllib2
 import pprint
+import datetime
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
@@ -200,6 +201,15 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return obj.id
 
+    def _convert_iso_date(self, ts):
+        try:
+            date = datetime.datetime.strptime(ts[:-7], '%Y-%m-%dT%H:%M:%S.%f') + \
+                datetime.timedelta(hours=int(ts[-5:-3]),
+                                   minutes=int(ts[-2:]))*int(ts[-6:-5]+'1')
+            return date.strftime("%d.%m.%Y, %H:%M")
+        except:
+            return ts
+
     def _save_dataset(self, dataset, harvest_job):
 
         if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
@@ -222,12 +232,14 @@ class StadtzhimportHarvester(HarvesterBase):
                 'notes': self._convert_base64(xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')),
                 'extras': [
                     ('spatialRelationship', self._convert_base64(xpath.text('.//sv:property[@sv:name="referencePlane"]/sv:value'))),
-                    ('dateFirstPublished', self._convert_base64(xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value'))),
-                    ('dateLastUpdated', self._convert_base64(xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value'))),
+                    ('dateFirstPublished', self._convert_iso_date(
+                        self._convert_base64(xpath.text('.//sv:property[@sv:name="creationDate"]/sv:value')))),
+                    ('dateLastUpdated', self._convert_iso_date(
+                        self._convert_base64(xpath.text('.//sv:property[@sv:name="modificationDate"]/sv:value')))),
                     ('version', self._convert_base64(xpath.text('.//sv:property[@sv:name="version"]/sv:value'))),
-                    ('updateInterval', self._convert_base64(xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value'))),
+                    ('updateInterval', self._decode(xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value'))),
                     ('timeRange', self._convert_base64(xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'))),
-                    ('dataType', self._convert_base64(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'))),
+                    ('dataType', self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value'))),
                     ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
                     ('comments', self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
                     ('attributes', self._json_encode_attributes(
@@ -353,6 +365,13 @@ class StadtzhimportHarvester(HarvesterBase):
             return string.encode('utf8', 'ignore')
         else:
             return str(string)
+
+    def _decode(self, string):
+        result = self._convert_base64(string)
+        try:
+            return re.match("^ogd_.*:(.*)$", result).group(1)
+        except:
+            return result
 
     def _convert_base64(self, string):
         '''
