@@ -212,7 +212,8 @@ class StadtzhimportHarvester(HarvesterBase):
 
     def _save_dataset(self, dataset, harvest_job):
 
-        if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
+        if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page' and\
+           XPathHelper(dataset).text('.//sv:property[@sv:name="cq:lastReplicationAction"]/sv:value') != 'Deactivate':
             xpath = XPathHelper(dataset)
             datasetID = xpath.text('./@sv:name')
             tags = self._generate_tags_array(xpath)
