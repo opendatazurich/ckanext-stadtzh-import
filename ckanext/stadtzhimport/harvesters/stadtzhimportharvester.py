@@ -11,6 +11,7 @@ import datetime
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
+from ckanext.stadtzhimport.helpers.groups import GroupsHelper
 
 from ofs import get_impl
 from pylons import config
@@ -251,6 +252,33 @@ class StadtzhimportHarvester(HarvesterBase):
                 ],
                 'related': self._get_related(xpath)
             }
+
+            groups = []
+
+            match = re.search(r'^ogd_category:thema/(.*)$', categories)
+            if match:
+                group_name = match.group(1)
+                if group_name == 'bauen_und_wohnen':
+                    group_name = 'bauen-wohnen'
+                elif group_name == 'umwelt_und_verkehr':
+                    group_name == 'umwelt'
+
+            try:
+                user = model.User.get(self.config['user'])
+                context = {
+                    'model': model,
+                    'session': Session,
+                    'user': self.config['user']
+                }
+                data_dict = {"id": group_name}
+                group_id = get_action('group_show')(context, data_dict)['id']
+                groups.append(group_id)
+            except:
+                log.debug('Couldn\'t get group id.')
+
+            metadata['groups'] = groups
+            log.debug(metadata['groups'])
+
             return self._save_harvest_object(metadata, harvest_job)
 
     def gather_stage(self, harvest_job):
@@ -297,6 +325,8 @@ class StadtzhimportHarvester(HarvesterBase):
             package_dict = json.loads(harvest_object.content)
             package_dict['id'] = harvest_object.guid
             package_dict['name'] = munge_title_to_name(package_dict[u'datasetID'])
+
+            log.debug(package_dict['groups'])
 
             user = model.User.get(self.config['user'])
             context = {
