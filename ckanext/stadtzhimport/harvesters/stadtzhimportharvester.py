@@ -255,7 +255,8 @@ class StadtzhimportHarvester(HarvesterBase):
 
             groups = []
 
-            match = re.search(r'^ogd_category:thema/(.*)$', categories)
+            category = self._convert_base64(xpath.text('.//sv:property[@sv:name="category"]/sv:value'))
+            match = re.search(r'^ogd_category:thema/(.*)$', category)
             if match:
                 group_name = match.group(1)
                 if group_name == 'bauen_und_wohnen':
