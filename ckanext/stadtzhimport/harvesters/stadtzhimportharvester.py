@@ -398,17 +398,17 @@ class StadtzhimportHarvester(HarvesterBase):
 
         for type in translations.keys():
             for value in xpath.multielement('.//sv:property[@sv:name="' + type + '"]/sv:value'):
-
-                try:
-                    title = re.match(".*/(.*)$", value.text).group(1)
-                except:
-                    title = value.text
-                    log.debug('Using url as related item title for value: %s' % title)
-                related.append({
-                    'title': title,
-                    'type': translations[type],
-                    'url': self._fix_related_url(value.text)
-                })
+                if value.text is not None:
+                    try:
+                        title = re.match(".*/(.*)$", value.text).group(1)
+                    except:
+                        title = value.text
+                        log.debug('Using url as related item title for value: %s' % title)
+                    related.append({
+                        'title': title,
+                        'type': translations[type],
+                        'url': self._fix_related_url(value.text)
+                    })
 
         return related
 
