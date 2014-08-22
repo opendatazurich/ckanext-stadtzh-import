@@ -181,8 +181,9 @@ class StadtzhimportHarvester(HarvesterBase):
         try:
             if values:
                 for tag in values.split(','):
-                    if tag:
-                        tags.append(munge_tag(tag))
+                    tag_stripped = tag.rstrip()
+                    if tag_stripped:
+                        tags.append(munge_tag(tag_stripped))
         except AttributeError:
             pass
 
