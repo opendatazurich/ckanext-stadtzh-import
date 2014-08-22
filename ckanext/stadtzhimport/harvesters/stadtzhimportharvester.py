@@ -11,7 +11,6 @@ import datetime
 from lxml import etree
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
-from ckanext.stadtzhimport.helpers.groups import GroupsHelper
 
 from ofs import get_impl
 from pylons import config
@@ -271,10 +270,6 @@ class StadtzhimportHarvester(HarvesterBase):
                 if basiskarten_match:
                     group_name = basiskarten_match.group(1)
                     log.debug(group_name)
-                    # Think I made a typo in the groups name -- change it here for now
-                    if group_name == 'basiskarten':
-                        group_name = 'basiskarte'
-
                 try:
                     user = model.User.get(self.config['user'])
                     context = {
