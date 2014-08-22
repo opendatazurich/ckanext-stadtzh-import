@@ -252,6 +252,41 @@ class StadtzhimportHarvester(HarvesterBase):
                 ],
                 'related': self._get_related(xpath)
             }
+
+            groups = []
+            categories = xpath.multielement('.//sv:property[@sv:name="category"]/sv:value')
+
+            for element in categories:
+                category = element.text
+                log.debug(category)
+                match = re.search(r'^ogd_category:thema/(.*)$', category)
+                if match:
+                    group_name = match.group(1)
+                    if group_name == 'bauen_und_wohnen':
+                        group_name = 'bauen-wohnen'
+                    elif group_name == 'umwelt_und_verkehr':
+                        group_name = 'umwelt'
+
+                basiskarten_match = re.search(r'^ogd_category:inhaltstyp/(.*)$', category)
+                if basiskarten_match:
+                    group_name = basiskarten_match.group(1)
+                    log.debug(group_name)
+                try:
+                    user = model.User.get(self.config['user'])
+                    context = {
+                        'model': model,
+                        'session': Session,
+                        'user': self.config['user']
+                    }
+                    data_dict = {"id": group_name}
+                    group_id = get_action('group_show')(context, data_dict)['id']
+                    groups.append(group_id)
+                except:
+                    log.debug('Couldn\'t get group id.')
+
+            metadata['groups'] = groups
+            log.debug(metadata['groups'])
+
             return self._save_harvest_object(metadata, harvest_job)
 
     def gather_stage(self, harvest_job):
@@ -298,6 +333,8 @@ class StadtzhimportHarvester(HarvesterBase):
             package_dict = json.loads(harvest_object.content)
             package_dict['id'] = harvest_object.guid
             package_dict['name'] = munge_title_to_name(package_dict[u'datasetID'])
+
+            log.debug(package_dict['groups'])
 
             user = model.User.get(self.config['user'])
             context = {
