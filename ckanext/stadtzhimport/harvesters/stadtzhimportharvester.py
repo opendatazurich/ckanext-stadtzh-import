@@ -387,14 +387,14 @@ class StadtzhimportHarvester(HarvesterBase):
         return True
 
     def _json_encode_attributes(self, properties):
-        _dict = {}
+        attributes = []
         for key, value in properties:
             if value:
                 value = self._normalize(self._convert_base64(value))
                 key = self._normalize(key)
-                _dict[key] = value
+                attributes.append((key, value))
 
-        return json.dumps(_dict)
+        return json.dumps(attributes)
 
     def _normalize(self, string):
         # convert strings like 'ogd_datatype:datenaggregat' to 'Datenaggregat'
