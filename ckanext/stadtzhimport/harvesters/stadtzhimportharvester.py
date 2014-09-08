@@ -254,6 +254,12 @@ class StadtzhimportHarvester(HarvesterBase):
                 'related': self._get_related(xpath)
             }
 
+            if xpath.text('.//sv:property[@sv:name="quality"]/sv:value'):
+                metadata['notes'] = metadata['notes']  + u'\n\nDatenqualität: ' + xpath.text('.//sv:property[@sv:name="quality"]/sv:value')
+                log.debug(u'Datenqualität: ' + xpath.text('.//sv:property[@sv:name="quality"]/sv:value'))
+            else:
+                log.debug(u'No Datenqualität.')
+
             groups = []
             categories = xpath.multielement('.//sv:property[@sv:name="category"]/sv:value')
 
