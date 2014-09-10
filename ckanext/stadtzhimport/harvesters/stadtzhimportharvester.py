@@ -6,7 +6,7 @@ import re
 os.environ['http_proxy']=''
 import httplib
 import urllib2
-import pprint
+from pprint import pprint
 import datetime
 from lxml import etree
 
@@ -53,6 +53,17 @@ class StadtzhimportHarvester(HarvesterBase):
     IMPORT_PATH = '/usr/lib/ckan/cms_stzh_ch_content_portal_de_index_ogd'
 
     PERMALINK_FORMAT = 'http://data.stadt-zuerich.ch/ogd.%s.link'
+
+    DATENLIEFERANTEN = {
+        'ogdprovider':    u'Statistik Stadt Zürich',
+        'ogdprovider_0':  u'Geomatik + Vermessung',
+        'ogdprovider_1':  u'Entsorgung + Recycling Zürich',
+        'ogdprovider_2':  u'Umwelt- und Gesundheitsschutz Zürich',
+        'ogdprovider_3':  u'Stadt Zürich Finanzverwaltung',
+        'ogdprovider_4':  u'Tiefbauamt, Abteilung Mobilität + Verkehr',
+        'ogdprovider_5':  u'Abteilung Bewilligungen der Stadtpolizei Zürich',
+        'ogdprovider_6':  u'Grün Stadt Zürich'
+    }
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
@@ -212,6 +223,29 @@ class StadtzhimportHarvester(HarvesterBase):
         except:
             return ts
 
+    def _lookup_datenlieferant(self, xpath):
+        lieferant = ''
+        try:
+            provider = re.match(".*\/(.*)$", xpath.text('.//sv:property[@sv:name="providerPath"]/sv:value')).group(1)
+            lieferant = self.DATENLIEFERANTEN[provider]
+        except:
+            log.debug('datenlieferant not found')
+        return lieferant
+
+    def _get_attributes(self, xpath):
+        result = []
+        nodes = xpath.multielement('.//sv:node[@sv:name="attributes"]/sv:node')
+        for node in nodes:
+            tech = xpath.text('./sv:property[@sv:name="fieldname_tech"]/sv:value', node)
+            clear = xpath.text('./sv:property[@sv:name="fieldname_clear"]/sv:value', node)
+            value = xpath.text('./sv:property[@sv:name="field_description"]/sv:value', node)
+            if clear:
+                name = '%s (technisch: %s)' % (clear, tech)
+            else:
+                name = tech
+            result.append((name, value))
+        return result
+
     def _save_dataset(self, dataset, harvest_job):
 
         if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page' and\
@@ -224,7 +258,7 @@ class StadtzhimportHarvester(HarvesterBase):
             metadata = {
                 'datasetID': datasetID,
                 'title': xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value'),
-                'url': None,
+                'url': self._lookup_datenlieferant(xpath),
                 'author': xpath.text('.//sv:property[@sv:name="source"]/sv:value'),
                 'maintainer': 'Open Data Zürich',
                 'maintainer_email': 'opendata@zuerich.ch',
@@ -245,11 +279,7 @@ class StadtzhimportHarvester(HarvesterBase):
                     ('dataType', self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')).capitalize()),
                     ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
                     ('comments', self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
-                    ('attributes', self._json_encode_attributes(
-                        xpath.tuple_from_nodes(
-                            './/sv:node[@sv:name="attributes"]/sv:node',
-                            'fieldname_tech',
-                            'field_description')))
+                    ('attributes', self._json_encode_attributes(self._get_attributes(xpath)))
                 ],
                 'related': self._get_related(xpath)
             }
