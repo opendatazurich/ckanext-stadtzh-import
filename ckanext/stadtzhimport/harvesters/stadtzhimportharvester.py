@@ -279,7 +279,8 @@ class StadtzhimportHarvester(HarvesterBase):
                     ('dataType', self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')).capitalize()),
                     ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
                     ('comments', self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
-                    ('attributes', self._json_encode_attributes(self._get_attributes(xpath)))
+                    ('attributes', self._json_encode_attributes(self._get_attributes(xpath))),
+                    ('dataQuality', self._convert_base64(xpath.text('.//sv:property[@sv:name="quality"]/sv:value')))
                 ],
                 'related': self._get_related(xpath)
             }
