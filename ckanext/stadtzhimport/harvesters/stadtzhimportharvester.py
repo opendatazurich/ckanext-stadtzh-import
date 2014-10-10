@@ -466,8 +466,8 @@ class StadtzhimportHarvester(HarvesterBase):
             if m:
                 string = m.group(1) + m.group(3)
             
-            # some of the comments have broken html in them
-            m = re.search('^(.*)(<\/\/a>)(.*)', string, re.DOTALL)
+            # some of the comments have broken html in them: get rid of tags like <//a> or html2text throws an exception
+            m = re.search('^(.*)(<\/\/\w*>)(.*)', string, re.DOTALL)
             if m:
                 string = m.group(1) + m.group(3)
             
