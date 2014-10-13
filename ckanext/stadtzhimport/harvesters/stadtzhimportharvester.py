@@ -176,7 +176,7 @@ class StadtzhimportHarvester(HarvesterBase):
             element = XPathHelper(link)
             if element.text('./sv:property[@sv:name="text"]/sv:value'):
                 resources.append({
-                    'url': self._generate_permalink(element.text('./sv:property[@sv:name="permalinkid"]/sv:value')),
+                    'url': element.text('./sv:property[@sv:name="link"]/sv:value'),
                     'name': element.text('./sv:property[@sv:name="text"]/sv:value'),
                     'format': element.text('./sv:property[@sv:name="dataformat"]/sv:value').split('/')[-1],
                     'resource_type': 'api'
