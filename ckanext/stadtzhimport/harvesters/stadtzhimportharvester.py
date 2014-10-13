@@ -3,7 +3,7 @@
 import os
 import base64
 import re
-os.environ['http_proxy']=''
+os.environ['http_proxy'] = ''
 import httplib
 import urllib2
 from pprint import pprint
@@ -24,7 +24,7 @@ from ckan.lib.munge import munge_title_to_name
 from ckanext.harvest.harvesters.base import munge_tag
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, \
-                                    HarvestObjectError
+    HarvestObjectError
 from ckanext.harvest.harvesters import HarvesterBase
 
 from pylons import config
@@ -136,7 +136,7 @@ class StadtzhimportHarvester(HarvesterBase):
         # TODO remove the check again
         if not os.path.exists(os.path.join(path, file_name)):
             try:
-                request = urllib2.Request(url, headers={"User-Agent" : "curl"})
+                request = urllib2.Request(url, headers={"User-Agent": "curl"})
                 contents = urllib2.urlopen(request)
             except (urllib2.HTTPError, httplib.BadStatusLine) as e:
                 log.debug('Downloading "%s" failed with error code "%s".' % (url, e.code))
@@ -336,7 +336,6 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return ids
 
-
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhimportHarvester fetch_stage')
 
@@ -352,15 +351,12 @@ class StadtzhimportHarvester(HarvesterBase):
         except Exception, e:
             log.exception(e)
 
-
-
     def import_stage(self, harvest_object):
         log.debug('In StadtzhimportHarvester import_stage')
 
         if not harvest_object:
             log.error('No harvest object received')
             return False
-
 
         try:
             package_dict = json.loads(harvest_object.content)
@@ -465,12 +461,12 @@ class StadtzhimportHarvester(HarvesterBase):
             m = re.search('^(.*>)(http:\/\/)(.*)', string, re.DOTALL)
             if m:
                 string = m.group(1) + m.group(3)
-            
+
             # some of the comments have broken html in them: get rid of tags like <//a> or html2text throws an exception
             m = re.search('^(.*)(<\/\/\w*>)(.*)', string, re.DOTALL)
             if m:
                 string = m.group(1) + m.group(3)
-            
+
             h = html2text.HTML2Text(bodywidth=0)
             return h.handle(string)
         except Exception, e:
