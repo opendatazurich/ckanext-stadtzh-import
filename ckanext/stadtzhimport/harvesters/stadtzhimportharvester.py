@@ -9,6 +9,7 @@ import urllib2
 from pprint import pprint
 import datetime
 from lxml import etree
+import html2text
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
 
@@ -278,7 +279,7 @@ class StadtzhimportHarvester(HarvesterBase):
                     ('timeRange', self._convert_base64(xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'))),
                     ('dataType', self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')).capitalize()),
                     ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
-                    ('comments', self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value'))),
+                    ('comments', self._convert_markdown(self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')), datasetID)),
                     ('attributes', self._json_encode_attributes(self._get_attributes(xpath))),
                     ('dataQuality', self._convert_base64(xpath.text('.//sv:property[@sv:name="quality"]/sv:value')))
                 ],
@@ -456,6 +457,25 @@ class StadtzhimportHarvester(HarvesterBase):
             decoded.decode('utf8')
             return decoded
         except:
+            return string
+
+    def _convert_markdown(self, string, datasetID):
+        try:
+            # if the link text is the same as the href, strip off the http://, otherwise html2text returns a link like this: <foo.com>
+            m = re.search('^(.*>)(http:\/\/)(.*)', string, re.DOTALL)
+            if m:
+                string = m.group(1) + m.group(3)
+            
+            # some of the comments have broken html in them: get rid of tags like <//a> or html2text throws an exception
+            m = re.search('^(.*)(<\/\/\w*>)(.*)', string, re.DOTALL)
+            if m:
+                string = m.group(1) + m.group(3)
+            
+            h = html2text.HTML2Text(bodywidth=0)
+            return h.handle(string)
+        except Exception, e:
+            log.debug('Error converting markdown for dataset %s' % datasetID)
+            log.exception(e)
             return string
 
     def _get_related(self, xpath):
