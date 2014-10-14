@@ -66,6 +66,22 @@ class StadtzhimportHarvester(HarvesterBase):
         'ogdprovider_6':  u'Grün Stadt Zürich'
     }
 
+    GROUP_NAMES = {
+        u'basiskarten': u'Basiskarten',
+        u'bauen-wohnen': u'Bauen und Wohnen',
+        u'bevoelkerung': u'Bevölkerung',
+        u'bildung': u'Bildung',
+        u'freizeit': u'Freizeit',
+        u'gesundheit': u'Gesundheit',
+        u'kultur': u'Kultur',
+        u'mobilitaet': u'Mobilität',
+        u'politik': u'Politik',
+        u'soziales': u'Soziales',
+        u'umwelt': u'Umwelt',
+        u'verwaltung': u'Verwaltung',
+        u'wirtschaft': u'Wirtschaft'
+    }
+
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
     # ---
@@ -315,7 +331,11 @@ class StadtzhimportHarvester(HarvesterBase):
                     group_id = get_action('group_show')(context, data_dict)['id']
                     groups.append(group_id)
                 except:
-                    log.debug('Couldn\'t get group id.')
+                    data_dict['name'] = group_name
+                    data_dict['title'] = self.GROUP_NAMES[group_name]
+                    log.debug('Couldn\'t get group id. Creating the group `%s` with data_dict: %s', group_name, data_dict)
+                    group_id = get_action('group_create')(context, data_dict)['id']
+                    groups.append(group_id)
 
             metadata['groups'] = groups
             log.debug(metadata['groups'])
