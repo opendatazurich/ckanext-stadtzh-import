@@ -10,6 +10,7 @@ from pprint import pprint
 import datetime
 from lxml import etree
 import html2text
+import string
 
 from ckanext.stadtzhimport.helpers.xpath import XPathHelper
 
@@ -277,7 +278,7 @@ class StadtzhimportHarvester(HarvesterBase):
                     ('version', self._convert_base64(xpath.text('.//sv:property[@sv:name="version"]/sv:value'))),
                     ('updateInterval', self._decode(xpath.text('.//sv:property[@sv:name="updateInterval"]/sv:value')).replace('_', ' oder ')),
                     ('timeRange', self._convert_base64(xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'))),
-                    ('dataType', self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')).capitalize()),
+                    ('dataType', string.capwords(self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')), '-')),
                     ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
                     ('comments', self._convert_markdown(self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')), datasetID)),
                     ('attributes', self._json_encode_attributes(self._get_attributes(xpath))),
