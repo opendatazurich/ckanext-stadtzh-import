@@ -21,7 +21,7 @@ from ckan import model
 from ckan.model import Session, Package
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
-from ckan.lib.munge import munge_title_to_name
+from ckan.lib.munge import munge_title_to_name, munge_filename
 from ckanext.harvest.harvesters.base import munge_tag
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, \
@@ -412,10 +412,12 @@ class StadtzhimportHarvester(HarvesterBase):
 
             # Move file around and make sure it's in the file-store
             for r in package_dict['resources']:
+                old_filename = r['name']
+                r['name'] = munge_filename(r['name'])
                 if r['resource_type'] == 'file':
                     label = package_dict['datasetID'] + '/' + r['name']
                     file_contents = ''
-                    with open(os.path.join(self.IMPORT_PATH, package_dict['datasetID'], r['name'])) as contents:
+                    with open(os.path.join(self.IMPORT_PATH, package_dict['datasetID'], old_filename)) as contents:
                         file_contents = contents.read()
                     params = {
                         'filename-original': 'the original file name',
