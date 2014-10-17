@@ -21,8 +21,8 @@ setup(
     zip_safe=False,
     install_requires=[
         # -*- Extra requirements: -*-
-        lxml==2.2.4,
-        html2text==2014.9.25
+        'lxml==2.2.4',
+        'html2text==2014.9.25'
     ],
     entry_points=\
     """
