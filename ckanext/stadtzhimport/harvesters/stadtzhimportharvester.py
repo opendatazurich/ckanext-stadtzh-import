@@ -167,6 +167,24 @@ class StadtzhimportHarvester(HarvesterBase):
 
         return True
 
+    def _sort_resource(self, x, y):
+
+        order = {
+            'zip':  1,
+            'wms':  2,
+            'wfs':  3,
+            'kmz':  4,
+            'json': 5
+        }
+
+        x_format = x['format'].lower()
+        y_format = y['format'].lower()
+        if not x_format in order:
+            return -1
+        if not y_format in order:
+            return 1
+        return cmp(order[x_format], order[y_format])
+
     def _generate_resources_dict_array(self, xpath, datasetID):
         '''
         Given the xpath of a dataset return an array of resource metadata
@@ -199,7 +217,8 @@ class StadtzhimportHarvester(HarvesterBase):
                     'resource_type': 'api'
                 })
 
-        return resources
+        sorted_resources = sorted(resources, cmp=lambda x, y: self._sort_resource(x, y))
+        return sorted_resources
 
     def _generate_tags_array(self, xpath):
         '''
