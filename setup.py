@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import sys, os
 
 version = '0.0'
 
@@ -9,7 +8,7 @@ setup(
     description="CKAN extension for the City of Zurich import the data of the existing website",
     long_description="""\
     """,
-    classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+    classifiers=[],
     keywords='',
     author='Liip AG',
     author_email='ogd@liip.ch',
@@ -21,16 +20,15 @@ setup(
     zip_safe=False,
     install_requires=[
         # -*- Extra requirements: -*-
-        'lxml==2.2.4',
+        'ckanext-stadtzh-harvest',
         'html2text==2014.9.25'
     ],
-    entry_points=\
+    entry_points=
     """
     [ckan.plugins]
     stadtzhimport=ckanext.stadtzhimport.plugins:StadtzhimportHarvest
     stadtzhimport_harvester=ckanext.stadtzhimport.harvesters:StadtzhimportHarvester
-    stadtzhimport_test_harvester=ckanext.stadtzhimport.tests.test_queue:TestHarvester
     [paste.paster_command]
-    harvester=ckanext.stadtzhimport.commands.harvester:Harvester
+    harvester=ckanext.stadtzhimport.commands.harvester:HarvesterCommand
     """,
 )
