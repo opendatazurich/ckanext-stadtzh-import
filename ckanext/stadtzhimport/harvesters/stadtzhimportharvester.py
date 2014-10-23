@@ -93,7 +93,7 @@ class StadtzhimportHarvester(StadtzhHarvester):
         return self._fetch_datasets(harvest_object)
 
     def import_stage(self, harvest_object):
-        log.debug('In StadtzhgeodropzoneHarvester import_stage')
+        log.debug('In StadtzhimportHarvester import_stage')
         return self._import_datasets(harvest_object)
 
     def _get_metadata(self, datasetID, xpath):
