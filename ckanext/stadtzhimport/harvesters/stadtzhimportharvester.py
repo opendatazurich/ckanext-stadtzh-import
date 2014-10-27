@@ -26,7 +26,6 @@ class StadtzhimportHarvester(StadtzhHarvester):
     The harvester to harvest the existing data portal of the Stadt ZH
     '''
 
-    CKAN_SITE_URL = config.get('ckan.site_url', 'http://stadtzh.lo')
     DATA_PATH = '/usr/lib/ckan/cms_stzh_ch_content_portal_de_index_ogd'
     PERMALINK_FORMAT = 'http://data.stadt-zuerich.ch/ogd.%s.link'
 
