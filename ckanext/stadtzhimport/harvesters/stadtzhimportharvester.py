@@ -252,16 +252,23 @@ class StadtzhimportHarvester(StadtzhHarvester):
         for type in translations.keys():
             for value in xpath.multielement('.//sv:property[@sv:name="' + type + '"]/sv:value'):
                 if value.text is not None:
-                    try:
+                    # Set title
+                    if re.match(".*/(.*)$", value.text):
                         title = re.match(".*/(.*)$", value.text).group(1)
-                    except:
+                    else:
                         title = value.text
-                        log.debug('Using url as related item title for value: %s' % title)
-                    related.append({
-                        'title': title,
-                        'type': translations[type],
-                        'url': self._fix_related_url(value.text)
-                    })
+                    # Get rest of dictionary for related item
+                    if re.match("/content/portal/de/index/ogd/anwendungen/.*$", value.text):
+                        data_dict = self._get_related_onportal_dict(title)
+                        data_dict['type'] = translations[type]
+                    else:
+                        data_dict = {
+                            'title': title,
+                            'type': translations[type],
+                            'url': self._fix_related_url(value.text)
+                        }
+                    log.debug('Using url as related item title for value: %s' % title)
+                    related.append(data_dict)
 
         return related
 
@@ -277,6 +284,26 @@ class StadtzhimportHarvester(StadtzhHarvester):
             log.debug('Failed to fix url "%s"' % raw)
 
         return url
+
+    def _get_related_onportal_dict(self, title):
+        with open(os.path.join(self.DATA_PATH, 'cms_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
+            parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
+            applications  = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="anwendungen"]/sv:node')
+            for app_type in applications:
+                if XPathHelper(app_type).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page':
+                    for app in app_type:
+                        xpath = XPathHelper(app)
+                        if xpath.text('./@sv:name') == title:
+                            title = xpath.text('.//sv:property[@sv:name="jcr:title"]/sv:value')
+                            description = xpath.text('.//sv:property[@sv:name="jcr:description"]/sv:value')
+                            log.debug(app_type)
+                            url = 'http://data.stadt-zuerich.ch/portal/de/index/ogd/anwendungen/' + XPathHelper(app_type).text('./sv:name') + '/' + xpath.text('./@sv:name') + 'html'
+                            data_dict = {
+                                'title': title,
+                                'description': description,
+                                'url': url
+                            }
+                            return data_dict
 
     def _generate_permalink(self, id):
         '''
