@@ -121,8 +121,8 @@ class StadtzhimportHarvester(StadtzhHarvester):
                 ('timeRange', self._convert_base64(xpath.text('.//sv:property[@sv:name="timeRange"]/sv:value'))),
                 ('dataType', string.capwords(self._decode(xpath.text('.//sv:property[@sv:name="datatype"]/sv:value')), '-')),
                 ('legalInformation', self._convert_base64(xpath.text('.//sv:property[@sv:name="legalInformation"]/sv:value'))),
-                ('comments', self._convert_markdown(self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')), datasetID)),
-                ('attributes', self._json_encode_attributes(self._get_attributes(xpath))),
+                ('sszBemerkungen', self._convert_markdown(self._convert_base64(xpath.text('.//sv:property[@sv:name="comments"]/sv:value')), datasetID)),
+                ('sszFields', self._json_encode_attributes(self._get_attributes(xpath))),
                 ('dataQuality', self._convert_base64(xpath.text('.//sv:property[@sv:name="quality"]/sv:value')))
             ],
             'related': self._get_related(xpath)
