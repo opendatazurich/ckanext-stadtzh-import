@@ -245,8 +245,8 @@ class StadtzhimportHarvester(StadtzhHarvester):
         related = []
 
         translations = {
-            'applications': 'application',
-            'publications': 'news_article'
+            'applications': 'Applikation',
+            'publications': 'Publikation'
         }
 
         for type in translations.keys():
