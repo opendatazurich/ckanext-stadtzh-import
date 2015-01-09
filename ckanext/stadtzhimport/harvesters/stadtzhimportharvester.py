@@ -136,19 +136,22 @@ class StadtzhimportHarvester(StadtzhHarvester):
 
         for file in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdfile")]'):
             element = XPathHelper(file)
+
             if element.text('./sv:property[@sv:name="fileName"]/sv:value'):
-
+                datasetID = self._validate_package_id(datasetID)
+                file_name = self._validate_filename(element.text('./sv:property[@sv:name="fileName"]/sv:value'))
                 url = self._generate_permalink(element.text('./sv:property[@sv:name="permalinkid"]/sv:value'))
-                file_name = element.text('./sv:property[@sv:name="fileName"]/sv:value')
-                path = os.path.join(self.DATA_PATH, datasetID)
 
-                if self._download_file(url, path, file_name):
-                    resources.append({
-                        # 'url': '', # will be filled in the import stage
-                        'name': file_name,
-                        'format': file_name.split('.')[-1],
-                        'resource_type': 'file'
-                    })
+                if datasetID and file_name and url:
+                    path = os.path.join(self.DATA_PATH, datasetID)
+
+                    if self._download_file(url, path, file_name):
+                        resources.append({
+                            # 'url': '', # will be filled in the import stage
+                            'name': file_name,
+                            'format': file_name.split('.')[-1],
+                            'resource_type': 'file'
+                        })
 
         for link in xpath.multielement('.//sv:node[@sv:name="data"]/*[starts-with(@sv:name, "ogdlink")]'):
             element = XPathHelper(link)
@@ -311,9 +314,14 @@ class StadtzhimportHarvester(StadtzhHarvester):
 
     def _generate_permalink(self, id):
         '''
-        Return full permalink given the permalink id
+        Validate the permalink id and return full permalink
         '''
-        return self.PERMALINK_FORMAT % id
+        match = re.match('^[\w]+$', id)
+        if not match:
+            log.debug('Permalink id %s contains disallowed characters' % id)
+            return False
+        else:
+            return self.PERMALINK_FORMAT % id
 
     def _download_file(self, url, path, file_name):
         '''
