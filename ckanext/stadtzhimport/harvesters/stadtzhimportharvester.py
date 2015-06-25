@@ -1,6 +1,7 @@
 #coding: utf-8
 
 import os
+import traceback
 import base64
 import re
 os.environ['http_proxy'] = ''
@@ -72,20 +73,29 @@ class StadtzhimportHarvester(StadtzhHarvester):
 
         ids = []
 
-        with open(os.path.join(self.DATA_PATH, 'cms_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
-            parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
-            datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
+        try:
+            with open(os.path.join(self.DATA_PATH, 'cms_stzh_ch_content_portal_de_index_ogd_systemView.xml'), 'r') as cms_file:
+                parser = etree.XMLParser(encoding='utf-8', ns_clean=True)
+                datasets = XPathHelper(etree.fromstring(cms_file.read(), parser=parser)).multielement('.//sv:node[@sv:name="daten"]/sv:node')
 
-            for dataset in datasets:
-                if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page' and\
-                   XPathHelper(dataset).text('.//sv:property[@sv:name="cq:lastReplicationAction"]/sv:value') != 'Deactivate':
-                    xpath = XPathHelper(dataset)
-                    datasetID = xpath.text('./@sv:name')
-                    metadata = self._get_metadata(datasetID, xpath)
-                    id = self._save_harvest_object(metadata, harvest_job)
-                    ids.append(id)
+                for dataset in datasets:
+                    if XPathHelper(dataset).text('.//sv:property[@sv:name="jcr:primaryType"]/sv:value') == 'cq:Page' and\
+                       XPathHelper(dataset).text('.//sv:property[@sv:name="cq:lastReplicationAction"]/sv:value') != 'Deactivate':
+                        xpath = XPathHelper(dataset)
+                        datasetID = xpath.text('./@sv:name')
+                        metadata = self._get_metadata(datasetID, xpath)
+                        id = self._save_harvest_object(metadata, harvest_job)
+                        ids.append(id)
 
-        return ids
+            return ids
+        except Exception, e:
+            log.exception(e)
+            self._save_gather_error(
+                'Unable to get content from folder: %s: %s / %s'
+                % (self.DATA_PATH, str(e), traceback.format_exc()),
+                harvest_job
+            )
+	    return []
 
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhimportHarvester fetch_stage')
